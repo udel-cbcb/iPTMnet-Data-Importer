@@ -13,8 +13,6 @@ extern crate serde_derive;
 
 use postgres::{Connection, TlsMode};
 use simplelog::*;
-use std::process;
-use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
@@ -56,6 +54,81 @@ struct MvEntry {
     PROTEIN_SYN: String,
     GENE_SYN: String
 }
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug)]
+struct MvEvent {
+    IPTM_EVENT_ID: i64,
+    SUB_FORM_CODE: String,
+    SUB_CODE: String,
+    SUB_TYPE: String,
+    SUB_UNIPROT_ID: String,
+    SUB_SYMBOL: String,
+    SUB_TAXON_CODE: String,
+    SUB_TAXON_COMMON: String,
+    SUB_SITES: String,
+    SUB_XREF: String,
+    ENZ_FORM_CODE: String,
+    ENZ_CODE: String,
+    ENZ_TYPE: String,
+    ENZ_UNIPROT_ID: String,
+    ENZ_SYMBOL: String,
+    ENZ_TAXON_CODE: String,
+    ENZ_TAXON_COMMON: String,
+    ENZ_SITES: String,
+    ENZ_XREF: String,
+    EVENT_NAME: String,
+    EVENT_LABEL: String,
+    SOURCE_LABEL: String,
+    IS_AUTO_GENERATED: String,
+    RESIDUE: String,
+    POSITION: i64,
+    MODIFIER: String,
+    NOTE: String,
+    PMIDS: String,
+    NUM_SUBSTRATES: String
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug)]
+struct MvEfip {
+    PPI_EVENT_ID: i64,
+    PTM_EVENT_ID: i64,
+    IMPACT: String,
+    PPI_SUB_CODE: String,
+    PPI_SUB_TYPE: String,
+    PPI_SUB_SYMBOL: String,
+    PPI_SUB_TAXON_CODE: String,
+    PPI_SUB_TAXON_COMMON: String,
+    PPI_SUB_SITES: String,
+    PPI_PR_CODE: String,
+    PPI_PR_TYPE: String,
+    PPI_PR_SYMBOL: String,
+    PPI_PR_TAXON_CODE: String,
+    PPI_PR_TAXON_COMMON: String,
+    PPI_SOURCE_LABEL: String,
+    PPI_NOTE: String,
+    PPI_PMIDS: String,
+    PTM_SUB_CODE: String,
+    PTM_SUB_TYPE: String,
+    PTM_SUB_SYMBOL: String,
+    PTM_SUB_TAXON_CODE: String,
+    PTM_SUB_TAXON_COMMON: String,
+    PTM_SUB_SITES: String,
+    PTM_ENZ_CODE: String,
+    PTM_ENZ_TYPE: String,
+    PTM_ENZ_SYMBOL: String,
+    PTM_ENZ_TAXON_CODE: String,
+    PTM_ENZ_TAXON_COMMON: String,
+    PTM_EVENT_NAME: String,
+    PTM_EVENT_LABEL: String,
+    PTM_RESIDUE: String,
+    PTM_POSITION: i64,
+    PTM_SOURCE_LABEL: String,
+    PTM_NOTE: String,
+    PTM_PMIDS: String
+}
+
 
 fn main() {
     CombinedLogger::init(
@@ -174,7 +247,7 @@ fn main() {
             SUB_UNIPROT_ID VARCHAR(50),
             SUB_SYMBOL VARCHAR(4000),
             SUB_TAXON_CODE VARCHAR(25),
-            SUB_TAXON_CODE_COMMON VARCHAR(100),
+            SUB_TAXON_COMMON VARCHAR(100),
             SUB_SITES TEXT,
             SUB_XREF VARCHAR(25),
             ENZ_FORM_CODE VARCHAR(25),
@@ -254,6 +327,7 @@ fn main() {
         }
     }
 
+    /**
     // Read mv_entry_exported.csv
     let file = File::open("./mv_entry_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -298,7 +372,35 @@ fn main() {
                             NUM_SITE,
                             NUM_FORM,
                             ROLE_AS_ENZYME,
-                            ROLE_AS_SUBSTRATE,
+                                                     IPTM_EVENT_ID,
+                            SUB_FORM_CODE,
+                            SUB_CODE,
+                            SUB_TYPE,
+                            SUB_UNIPROT_ID,
+                            SUB_SYMBOL,
+                            SUB_TAXON_CODE,
+                            SUB_TAXON_CODE_COMMON,
+                            SUB_SITES,
+                            SUB_XREF,
+                            ENZ_FORM_CODE,
+                            ENZ_CODE,
+                            ENZ_TYPE,
+                            ENZ_UNIPROT_ID,
+                            ENZ_SYMBOL,
+                            ENZ_TAXON_CODE,
+                            ENZ_TAXON_COMMON,
+                            ENZ_SITES,
+                            ENZ_XREF,
+                            EVENT_NAME,
+                            EVENT_LABEL,
+                            SOURCE_LABEL,
+                            IS_AUTO_GENERATED,
+                            RESIDUE,
+                            POSITION,
+                            MODIFIER,
+                            NOTE,
+                            PMIDS,
+                            NUM_SUBSTRATES   ROLE_AS_SUBSTRATE,
                             ROLE_AS_PPI,
                             WEIGHT,
                             LIST_AS_SUBSTRATE,
@@ -348,11 +450,220 @@ fn main() {
             },
             Err(err) => {
                 error!("{}",err);
+                error!("{:?}",&mv_entry);
                 std::process::exit(1);
             }
         }
 
     }
+    */
+
+    /**
+    // Read mv_event_exported.csv
+    let file = File::open("./mv_event_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let count: u64 = buf_reader.lines().count() as u64;
+
+    let file = File::open("./mv_event_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let mut rdr = csv::Reader::from_reader(buf_reader);
+
+    info!("POPULATING MV_EVENT");
+
+    let mut pb = ProgressBar::new(count);
+    pb.format("╢▌▌░╟");
+        
+    for result in rdr.deserialize() {
+        //read the entry
+        let mv_event: MvEvent = result.unwrap();
+        //insert into postgres
+        let insert_result = conn.execute("INSERT INTO MV_EVENT 
+                        (
+                            IPTM_EVENT_ID,
+                            SUB_FORM_CODE,
+                            SUB_CODE,
+                            SUB_TYPE,
+                            SUB_UNIPROT_ID,
+                            SUB_SYMBOL,
+                            SUB_TAXON_CODE,
+                            SUB_TAXON_COMMON,
+                            SUB_SITES,
+                            SUB_XREF,
+                            ENZ_FORM_CODE,
+                            ENZ_CODE,
+                            ENZ_TYPE,
+                            ENZ_UNIPROT_ID,
+                            ENZ_SYMBOL,
+                            ENZ_TAXON_CODE,
+                            ENZ_TAXON_COMMON,
+                            ENZ_SITES,
+                            ENZ_XREF,
+                            EVENT_NAME,
+                            EVENT_LABEL,
+                            SOURCE_LABEL,
+                            IS_AUTO_GENERATED,
+                            RESIDUE,
+                            POSITION,
+                            MODIFIER,
+                            NOTE,
+                            PMIDS,
+                            NUM_SUBSTRATES
+                        )                     
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)",
+                 &[&mv_event.IPTM_EVENT_ID,
+                  &mv_event.SUB_FORM_CODE,
+                  &mv_event.SUB_CODE,
+                  &mv_event.SUB_TYPE,
+                  &mv_event.SUB_UNIPROT_ID,
+                  &mv_event.SUB_SYMBOL,
+                  &mv_event.SUB_TAXON_CODE,
+                  &mv_event.SUB_TAXON_COMMON,
+                  &mv_event.SUB_SITES,
+                  &mv_event.SUB_XREF,
+                  &mv_event.ENZ_FORM_CODE,
+                  &mv_event.ENZ_CODE,
+                  &mv_event.ENZ_TYPE,
+                  &mv_event.ENZ_UNIPROT_ID,
+                  &mv_event.ENZ_SYMBOL,
+                  &mv_event.ENZ_TAXON_CODE,
+                  &mv_event.ENZ_TAXON_COMMON,
+                  &mv_event.ENZ_SITES,
+                  &mv_event.ENZ_XREF,
+                  &mv_event.EVENT_NAME,
+                  &mv_event.EVENT_LABEL,
+                  &mv_event.SOURCE_LABEL,
+                  &mv_event.IS_AUTO_GENERATED,
+                  &mv_event.RESIDUE,
+                  &mv_event.POSITION,
+                  &mv_event.MODIFIER,
+                  &mv_event.NOTE,
+                  &mv_event.PMIDS,
+                  &mv_event.NUM_SUBSTRATES                           
+                  ]);
+        
+        match insert_result {
+            Ok(_) => {
+                pb.inc();            
+            },
+            Err(err) => {
+                error!("{}",err);
+                error!("{:?}",&mv_event);
+                std::process::exit(1);
+            }
+        }
+
+    }    
+    */
+
+
+        // Read mv_event_exported.csv
+    let file = File::open("./mv_efip_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let count: u64 = buf_reader.lines().count() as u64;
+
+    let file = File::open("./mv_efip_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let mut rdr = csv::Reader::from_reader(buf_reader);
+
+    info!("POPULATING MV_EFIP");
+
+    let mut pb = ProgressBar::new(count);
+    pb.format("╢▌▌░╟");
+        
+    for result in rdr.deserialize() {
+        //read the entry
+        let mv_efip: MvEfip = result.unwrap();
+        //insert into postgres
+        let insert_result = conn.execute("INSERT INTO MV_EFIP 
+                        (
+                            PPI_EVENT_ID,
+                            PTM_EVENT_ID,
+                            IMPACT,
+                            PPI_SUB_CODE,
+                            PPI_SUB_TYPE,
+                            PPI_SUB_SYMBOL,
+                            PPI_SUB_TAXON_CODE,
+                            PPI_SUB_TAXON_COMMON,
+                            PPI_SUB_SITES,
+                            PPI_PR_CODE,
+                            PPI_PR_TYPE,
+                            PPI_PR_SYMBOL,
+                            PPI_PR_TAXON_CODE,
+                            PPI_PR_TAXON_COMMON,
+                            PPI_SOURCE_LABEL,
+                            PPI_NOTE,
+                            PPI_PMIDS,
+                            PTM_SUB_CODE,
+                            PTM_SUB_TYPE,
+                            PTM_SUB_SYMBOL,
+                            PTM_SUB_TAXON_CODE,
+                            PTM_SUB_TAXON_COMMON,
+                            PTM_SUB_SITES,
+                            PTM_ENZ_CODE,
+                            PTM_ENZ_TYPE,
+                            PTM_ENZ_SYMBOL,
+                            PTM_ENZ_TAXON_CODE,
+                            PTM_ENZ_TAXON_COMMON,
+                            PTM_EVENT_NAME,
+                            PTM_EVENT_LABEL,
+                            PTM_RESIDUE,
+                            PTM_POSITION,
+                            PTM_SOURCE_LABEL,
+                            PTM_NOTE,
+                            PTM_PMIDS
+                        )                     
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)",
+                 &[&mv_efip.PPI_EVENT_ID,
+                  &mv_efip.PTM_EVENT_ID,
+                  &mv_efip.IMPACT,
+                  &mv_efip.PPI_SUB_CODE,
+                  &mv_efip.PPI_SUB_TYPE,
+                  &mv_efip.PPI_SUB_SYMBOL,
+                  &mv_efip.PPI_SUB_TAXON_CODE,
+                  &mv_efip.PPI_SUB_TAXON_COMMON,
+                  &mv_efip.PPI_SUB_SITES,
+                  &mv_efip.PPI_PR_CODE,
+                  &mv_efip.PPI_PR_TYPE,
+                  &mv_efip.PPI_PR_SYMBOL,
+                  &mv_efip.PPI_PR_TAXON_CODE,
+                  &mv_efip.PPI_PR_TAXON_COMMON,
+                  &mv_efip.PPI_SOURCE_LABEL,
+                  &mv_efip.PPI_NOTE,
+                  &mv_efip.PPI_PMIDS,
+                  &mv_efip.PTM_SUB_CODE,
+                  &mv_efip.PTM_SUB_TYPE,
+                  &mv_efip.PTM_SUB_SYMBOL,
+                  &mv_efip.PTM_SUB_TAXON_CODE,
+                  &mv_efip.PTM_SUB_TAXON_COMMON,
+                  &mv_efip.PTM_SUB_SITES,
+                  &mv_efip.PTM_ENZ_CODE,
+                  &mv_efip.PTM_ENZ_TYPE,
+                  &mv_efip.PTM_ENZ_SYMBOL,
+                  &mv_efip.PTM_ENZ_TAXON_CODE,
+                  &mv_efip.PTM_ENZ_TAXON_COMMON,
+                  &mv_efip.PTM_EVENT_NAME,
+                  &mv_efip.PTM_EVENT_LABEL,
+                  &mv_efip.PTM_RESIDUE,
+                  &mv_efip.PTM_POSITION,
+                  &mv_efip.PTM_SOURCE_LABEL,
+                  &mv_efip.PTM_NOTE,
+                  &mv_efip.PTM_PMIDS                                       
+                  ]);
+        
+        match insert_result {
+            Ok(_) => {
+                pb.inc();            
+            },
+            Err(err) => {
+                error!("{}",err);
+                error!("{:?}",&mv_efip);
+                std::process::exit(1);
+            }
+        }
+
+    }
+
+
 
     //END the transaction
     let end_transaction_result = conn.execute("COMMIT;",&[]);
