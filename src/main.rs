@@ -39,15 +39,21 @@ struct MvEntry {
     NOTE: String,
     SITES: String,
     XREF: String,
-    NUM_ENZYME: i64,
-    NUM_SUBSTRATE: i64,
-    NUM_PPI: i64,
-    NUM_SITE: i64,
-    NUM_FORM: i64,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    NUM_ENZYME: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    NUM_SUBSTRATE: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    NUM_PPI: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    NUM_SITE: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    NUM_FORM: Option<i64>,
     ROLE_AS_ENZYME: String,
     ROLE_AS_SUBSTRATE: String,
     ROLE_AS_PPI: String,
-    WEIGHT: i64,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    WEIGHT: Option<i64>,
     LIST_AS_SUBSTRATE: String,
     LIST_AS_ENZYME: String,
     HAS_OVERLAP_PTM: String,
@@ -82,7 +88,8 @@ struct MvEvent {
     SOURCE_LABEL: String,
     IS_AUTO_GENERATED: String,
     RESIDUE: String,
-    POSITION: i64,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    POSITION: Option<i64>,
     MODIFIER: String,
     NOTE: String,
     PMIDS: String,
@@ -123,7 +130,8 @@ struct MvEfip {
     PTM_EVENT_NAME: String,
     PTM_EVENT_LABEL: String,
     PTM_RESIDUE: String,
-    PTM_POSITION: i64,
+    #[serde(deserialize_with = "csv::invalid_option")]
+    PTM_POSITION: Option<i64>,
     PTM_SOURCE_LABEL: String,
     PTM_NOTE: String,
     PTM_PMIDS: String
@@ -327,6 +335,7 @@ fn main() {
         }
     }
 
+
     // Read mv_entry_exported.csv
     let file = File::open("./mv_entry_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -338,7 +347,7 @@ fn main() {
 
     info!("POPULATING MV_ENTRY");
 
-    let mut pb = ProgressBar::new(count);
+    let mut pb = ProgressBar::new(count-1);
     pb.format("╢▌▌░╟");
         
     for result in rdr.deserialize() {
@@ -416,7 +425,7 @@ fn main() {
                   ]);
         
         match insert_result {
-            Ok(val) => {
+            Ok(_) => {
                 pb.inc();            
             },
             Err(err) => {
@@ -439,10 +448,10 @@ fn main() {
 
     info!("POPULATING MV_EVENT");
 
-    let mut pb = ProgressBar::new(count);
+    let mut pb = ProgressBar::new(count-1);
     pb.format("╢▌▌░╟");
-        
-    for result in rdr.deserialize() {
+
+    for result in rdr.deserialize(){
         //read the entry
         let mv_event: MvEvent = result.unwrap();
         //insert into postgres
@@ -520,10 +529,9 @@ fn main() {
                 std::process::exit(1);
             }
         }
-
     } 
 
-    // Read mv_event_exported.csv
+    // Read mv_efip_exported.csv
     let file = File::open("./mv_efip_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
     let count: u64 = buf_reader.lines().count() as u64;
@@ -534,7 +542,7 @@ fn main() {
 
     info!("POPULATING MV_EFIP");
 
-    let mut pb = ProgressBar::new(count);
+    let mut pb = ProgressBar::new(count-1);
     pb.format("╢▌▌░╟");
         
     for result in rdr.deserialize() {
