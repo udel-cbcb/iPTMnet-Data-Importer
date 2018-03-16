@@ -327,7 +327,6 @@ fn main() {
         }
     }
 
-    /**
     // Read mv_entry_exported.csv
     let file = File::open("./mv_entry_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -372,35 +371,7 @@ fn main() {
                             NUM_SITE,
                             NUM_FORM,
                             ROLE_AS_ENZYME,
-                                                     IPTM_EVENT_ID,
-                            SUB_FORM_CODE,
-                            SUB_CODE,
-                            SUB_TYPE,
-                            SUB_UNIPROT_ID,
-                            SUB_SYMBOL,
-                            SUB_TAXON_CODE,
-                            SUB_TAXON_CODE_COMMON,
-                            SUB_SITES,
-                            SUB_XREF,
-                            ENZ_FORM_CODE,
-                            ENZ_CODE,
-                            ENZ_TYPE,
-                            ENZ_UNIPROT_ID,
-                            ENZ_SYMBOL,
-                            ENZ_TAXON_CODE,
-                            ENZ_TAXON_COMMON,
-                            ENZ_SITES,
-                            ENZ_XREF,
-                            EVENT_NAME,
-                            EVENT_LABEL,
-                            SOURCE_LABEL,
-                            IS_AUTO_GENERATED,
-                            RESIDUE,
-                            POSITION,
-                            MODIFIER,
-                            NOTE,
-                            PMIDS,
-                            NUM_SUBSTRATES   ROLE_AS_SUBSTRATE,
+                            ROLE_AS_SUBSTRATE,
                             ROLE_AS_PPI,
                             WEIGHT,
                             LIST_AS_SUBSTRATE,
@@ -456,9 +427,7 @@ fn main() {
         }
 
     }
-    */
 
-    /**
     // Read mv_event_exported.csv
     let file = File::open("./mv_event_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -552,11 +521,9 @@ fn main() {
             }
         }
 
-    }    
-    */
+    } 
 
-
-        // Read mv_event_exported.csv
+    // Read mv_event_exported.csv
     let file = File::open("./mv_efip_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
     let count: u64 = buf_reader.lines().count() as u64;
