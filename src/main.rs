@@ -1,9 +1,9 @@
+extern crate clap;
+extern crate csv;
+extern crate pbr;
 extern crate postgres;
 extern crate serde;
-extern crate csv;
 extern crate simplelog;
-extern crate pbr;
-
 
 #[macro_use]
 extern crate log;
@@ -17,6 +17,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use pbr::ProgressBar;
+use clap::{Arg, App};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,26 +40,20 @@ struct MvEntry {
     NOTE: String,
     SITES: String,
     XREF: String,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    NUM_ENZYME: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    NUM_SUBSTRATE: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    NUM_PPI: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    NUM_SITE: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    NUM_FORM: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] NUM_ENZYME: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] NUM_SUBSTRATE: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] NUM_PPI: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] NUM_SITE: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] NUM_FORM: Option<i64>,
     ROLE_AS_ENZYME: String,
     ROLE_AS_SUBSTRATE: String,
     ROLE_AS_PPI: String,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    WEIGHT: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] WEIGHT: Option<i64>,
     LIST_AS_SUBSTRATE: String,
     LIST_AS_ENZYME: String,
     HAS_OVERLAP_PTM: String,
     PROTEIN_SYN: String,
-    GENE_SYN: String
+    GENE_SYN: String,
 }
 
 #[allow(non_snake_case)]
@@ -88,12 +83,11 @@ struct MvEvent {
     SOURCE_LABEL: String,
     IS_AUTO_GENERATED: String,
     RESIDUE: String,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    POSITION: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] POSITION: Option<i64>,
     MODIFIER: String,
     NOTE: String,
     PMIDS: String,
-    NUM_SUBSTRATES: String
+    NUM_SUBSTRATES: String,
 }
 
 #[allow(non_snake_case)]
@@ -130,78 +124,131 @@ struct MvEfip {
     PTM_EVENT_NAME: String,
     PTM_EVENT_LABEL: String,
     PTM_RESIDUE: String,
-    #[serde(deserialize_with = "csv::invalid_option")]
-    PTM_POSITION: Option<i64>,
+    #[serde(deserialize_with = "csv::invalid_option")] PTM_POSITION: Option<i64>,
     PTM_SOURCE_LABEL: String,
     PTM_NOTE: String,
-    PTM_PMIDS: String
+    PTM_PMIDS: String,
 }
 
-
 fn main() {
-    CombinedLogger::init(
-        vec![
-            TermLogger::new(LevelFilter::Info,Config::default()).unwrap(),
-        ]
-    ).unwrap();
-    let username = "postgres";
-    let password = "postgres";
-    let host= "localhost";
-    let port = "5432";    
-    let database = "iptmnet";
-    let connection_string = format!("postgres://{username}:{password}@{host}:{port}/{database}",
-                                     username=username,
-                                     password=password,
-                                     host=host,
-                                     port=port,
-                                     database=database);
+    CombinedLogger::init(vec![
+        TermLogger::new(LevelFilter::Info, Config::default()).unwrap(),
+    ]).unwrap();
+
+    let matches = App::new("iPTMnet data importer")
+        .version("1.0")
+        .author("Sachin Gavali. <saching@ude.edu>")
+        .about("Imports data from CSV files into postgres database")
+        .arg(
+            Arg::with_name("HOST")
+                .long("host")
+                .help("The address of postgres database. Default - localhost")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("PORT")
+                .long("port")
+                .help("The port on which postgres database is running. Default - 5432 ")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("USERNAME")
+                .long("user")
+                .help("Username of the user that owns iptmnet database. Default - postgres")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("PASSWORD")
+                .long("pass")
+                .help("Password of the user that owns iptmnet database. Default - postgres")
+                .takes_value(true),
+        )
+        .get_matches();
+
     
-    info!("{}",format!("Connecting to database at - {}.",connection_string.as_str()));
-    let conn = Connection::connect(connection_string.as_str(),TlsMode::None).unwrap();
+    let mut username = "postgres";
+    let mut password = "postgres";
+    let mut host = "localhost";
+    let mut port = "5432";
+    let database = "iptmnet";
+
+    if matches.is_present("HOST"){
+        host = matches.value_of("HOST").unwrap();
+    }
+
+    if matches.is_present("PORT"){
+        port = matches.value_of("PORT").unwrap();
+    }
+
+    if matches.is_present("USERNAME"){
+        username = matches.value_of("USERNAME").unwrap();
+    }
+
+    if matches.is_present("PASSWORD"){
+        host = matches.value_of("password").unwrap();
+    }
+
+    let connection_string = format!(
+        "postgres://{username}:{password}@{host}:{port}/{database}",
+        username = username,
+        password = password,
+        host = host,
+        port = port,
+        database = database
+    );
+
+    info!(
+        "{}",
+        format!(
+            "Connecting to database at - {}.",
+            connection_string.as_str()
+        )
+    );
+    let conn = Connection::connect(connection_string.as_str(), TlsMode::None).unwrap();
 
     //START the transaction
-    let start_transaction_result = conn.execute("BEGIN;",&[]);
+    let start_transaction_result = conn.execute("BEGIN;", &[]);
     match start_transaction_result {
         Ok(_) => info!("STARTED TRANSACTION"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
     //drop table MV_ENTRY
-    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_ENTRY;",&[]);  
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_ENTRY;", &[]);
     match drop_mv_entry_result {
         Ok(_) => info!("DROPPED TABLE MV_ENTRY"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
     //drop table MV_EVENT
-    let drop_mv_event_result = conn.execute("DROP TABLE IF EXISTS MV_EVENT;",&[]);  
+    let drop_mv_event_result = conn.execute("DROP TABLE IF EXISTS MV_EVENT;", &[]);
     match drop_mv_event_result {
         Ok(_) => info!("DROPPED TABLE MV_EVENT"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
     //drop table MV_EVENT
-    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_EFIP;",&[]);  
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_EFIP;", &[]);
     match drop_mv_entry_result {
         Ok(_) => info!("DROPPED TABLE MV_EFIP"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
-
     //create table MV_ENTRY
-    let create_mv_entry_result = conn.execute("CREATE TABLE IF NOT EXISTS MV_ENTRY
+    let create_mv_entry_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_ENTRY
         (
             IPTM_ENTRY_ID BIGINT NOT NULL,
             IPTM_ENTRY_CODE VARCHAR(25) NOT NULL,
@@ -235,18 +282,21 @@ fn main() {
             HAS_OVERLAP_PTM CHAR(1),
             PROTEIN_SYN VARCHAR(4000),
             GENE_SYN VARCHAR(4000)
-        )", &[]);
+        )",
+        &[],
+    );
 
     match create_mv_entry_result {
         Ok(_) => info!("CREATED TABLE MV_ENTRY"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
     //create table MV_EVENT
-    let create_mv_event_result = conn.execute("CREATE TABLE IF NOT EXISTS MV_EVENT
+    let create_mv_event_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_EVENT
         (
             IPTM_EVENT_ID BIGINT NOT NULL,
             SUB_FORM_CODE VARCHAR(25),
@@ -277,18 +327,21 @@ fn main() {
             NOTE TEXT,
             PMIDS TEXT,
             NUM_SUBSTRATES VARCHAR(4000)
-        )", &[]);
+        )",
+        &[],
+    );
 
     match create_mv_event_result {
         Ok(_) => info!("CREATED TABLE MV_EVENT"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
 
     //create table MV_EFIP
-    let create_mv_efip_result = conn.execute("CREATE TABLE IF NOT EXISTS MV_EFIP
+    let create_mv_efip_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_EFIP
         (
             PPI_EVENT_ID BIGINT,
             PTM_EVENT_ID BIGINT,
@@ -325,16 +378,17 @@ fn main() {
             PTM_SOURCE_LABEL VARCHAR(10),
             PTM_NOTE TEXT,
             PTM_PMIDS TEXT
-        )", &[]);
+        )",
+        &[],
+    );
 
     match create_mv_efip_result {
         Ok(_) => info!("CREATED TABLE MV_EFIP"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
-
 
     // Read mv_entry_exported.csv
     let file = File::open("./mv_entry_export.csv").unwrap();
@@ -347,9 +401,9 @@ fn main() {
 
     info!("POPULATING MV_ENTRY");
 
-    let mut pb = ProgressBar::new(count-1);
+    let mut pb = ProgressBar::new(count - 1);
     pb.format("╢▌▌░╟");
-        
+
     for result in rdr.deserialize() {
         //read the entry
         let mv_entry: MvEntry = result.unwrap();
@@ -423,18 +477,17 @@ fn main() {
                   &mv_entry.PROTEIN_SYN,
                   &mv_entry.GENE_SYN                           
                   ]);
-        
+
         match insert_result {
             Ok(_) => {
-                pb.inc();            
-            },
+                pb.inc();
+            }
             Err(err) => {
-                error!("{}",err);
-                error!("{:?}",&mv_entry);
+                error!("{}", err);
+                error!("{:?}", &mv_entry);
                 std::process::exit(1);
             }
         }
-
     }
 
     // Read mv_event_exported.csv
@@ -448,10 +501,10 @@ fn main() {
 
     info!("POPULATING MV_EVENT");
 
-    let mut pb = ProgressBar::new(count-1);
+    let mut pb = ProgressBar::new(count - 1);
     pb.format("╢▌▌░╟");
 
-    for result in rdr.deserialize(){
+    for result in rdr.deserialize() {
         //read the entry
         let mv_event: MvEvent = result.unwrap();
         //insert into postgres
@@ -518,18 +571,18 @@ fn main() {
                   &mv_event.PMIDS,
                   &mv_event.NUM_SUBSTRATES                           
                   ]);
-        
+
         match insert_result {
             Ok(_) => {
-                pb.inc();            
-            },
+                pb.inc();
+            }
             Err(err) => {
-                error!("{}",err);
-                error!("{:?}",&mv_event);
+                error!("{}", err);
+                error!("{:?}", &mv_event);
                 std::process::exit(1);
             }
         }
-    } 
+    }
 
     // Read mv_efip_exported.csv
     let file = File::open("./mv_efip_export.csv").unwrap();
@@ -542,9 +595,9 @@ fn main() {
 
     info!("POPULATING MV_EFIP");
 
-    let mut pb = ProgressBar::new(count-1);
+    let mut pb = ProgressBar::new(count - 1);
     pb.format("╢▌▌░╟");
-        
+
     for result in rdr.deserialize() {
         //read the entry
         let mv_efip: MvEfip = result.unwrap();
@@ -624,30 +677,26 @@ fn main() {
                   &mv_efip.PTM_NOTE,
                   &mv_efip.PTM_PMIDS                                       
                   ]);
-        
+
         match insert_result {
             Ok(_) => {
-                pb.inc();            
-            },
+                pb.inc();
+            }
             Err(err) => {
-                error!("{}",err);
-                error!("{:?}",&mv_efip);
+                error!("{}", err);
+                error!("{:?}", &mv_efip);
                 std::process::exit(1);
             }
         }
-
     }
 
-
-
     //END the transaction
-    let end_transaction_result = conn.execute("COMMIT;",&[]);
+    let end_transaction_result = conn.execute("COMMIT;", &[]);
     match end_transaction_result {
         Ok(_) => info!("END TRANSACTION"),
         Err(val) => {
-            error!("{}",val);
+            error!("{}", val);
             std::process::exit(1);
         }
     }
-
 }
