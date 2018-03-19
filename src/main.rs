@@ -185,7 +185,7 @@ fn main() {
     }
 
     if matches.is_present("PASSWORD"){
-        password = matches.value_of("password").unwrap();
+        password = matches.value_of("PASSWORD").unwrap();
     }
 
     let connection_string = format!(
