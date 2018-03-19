@@ -185,7 +185,7 @@ fn main() {
     }
 
     if matches.is_present("PASSWORD"){
-        host = matches.value_of("password").unwrap();
+        password = matches.value_of("password").unwrap();
     }
 
     let connection_string = format!(
