@@ -17,7 +17,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
 use pbr::ProgressBar;
-use clap::{Arg, App};
+use clap::{App, Arg};
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -130,6 +130,28 @@ struct MvEfip {
     PTM_PMIDS: String,
 }
 
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Debug)]
+struct MvProteo {
+    SUB_CODE: String,
+    SUB_TYPE: String,
+    SUB_SYMBOL: String,
+    SUB_SITES: String,
+    SUB_XREF: String,
+    ENZ_CODE: String,
+    ENZ_TYPE: String,
+    ENZ_SYMBOL: String,
+    ENZ_SITES: String,
+    ENZ_XREF: String,
+    SITES: String,
+    EVENT_NAME: String,
+    EVENT_LABEL: String,
+    SOURCE_LABEL: String,
+    IS_AUTO_GENERATED: String,
+    MODIFIER: String,
+    PMIDS: String,
+}
+
 fn main() {
     CombinedLogger::init(vec![
         TermLogger::new(LevelFilter::Info, Config::default()).unwrap(),
@@ -165,26 +187,25 @@ fn main() {
         )
         .get_matches();
 
-    
     let mut username = "postgres";
     let mut password = "postgres";
     let mut host = "localhost";
     let mut port = "5432";
     let database = "iptmnet";
 
-    if matches.is_present("HOST"){
+    if matches.is_present("HOST") {
         host = matches.value_of("HOST").unwrap();
     }
 
-    if matches.is_present("PORT"){
+    if matches.is_present("PORT") {
         port = matches.value_of("PORT").unwrap();
     }
 
-    if matches.is_present("USERNAME"){
+    if matches.is_present("USERNAME") {
         username = matches.value_of("USERNAME").unwrap();
     }
 
-    if matches.is_present("PASSWORD"){
+    if matches.is_present("PASSWORD") {
         password = matches.value_of("PASSWORD").unwrap();
     }
 
@@ -246,7 +267,43 @@ fn main() {
         }
     }
 
+    
     //create table MV_ENTRY
+    create_mv_entry(&conn);
+
+    //create table MV_EVENT
+    create_mv_event(&conn);
+
+    //create table MV_EFIP
+    create_mv_efip(&conn);
+
+    //create table MV_PROTEO
+    create_mv_proteo(&conn);
+
+    //populate mv_entry
+    populate_mv_entry(&conn);
+
+    //populate mv event
+    populate_mv_event(&conn);
+
+    //populate mv efip
+    populate_mv_efip(&conn);
+    
+    //populate mv_proteo
+    populate_mv_proteo(&conn);
+
+    //END the transaction
+    let end_transaction_result = conn.execute("COMMIT;", &[]);
+    match end_transaction_result {
+        Ok(_) => info!("END TRANSACTION"),
+        Err(val) => {
+            error!("{}", val);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn create_mv_entry(conn: &Connection) {
     let create_mv_entry_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS MV_ENTRY
         (
@@ -254,7 +311,7 @@ fn main() {
             IPTM_ENTRY_CODE VARCHAR(25) NOT NULL,
             IPTM_ENTRY_TYPE VARCHAR(10) NOT NULL,
             IPTM_ENTRY_SYMBOL VARCHAR(4000),
-            UNPROT_ID VARCHAR(50),
+            UNIPROT_ID VARCHAR(50),
             PROTEIN_NAME VARCHAR(200),
             GENE_NAME VARCHAR(50),
             PROTEIN_SYNONYMS TEXT,
@@ -293,103 +350,9 @@ fn main() {
             std::process::exit(1);
         }
     }
+}
 
-    //create table MV_EVENT
-    let create_mv_event_result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS MV_EVENT
-        (
-            IPTM_EVENT_ID BIGINT NOT NULL,
-            SUB_FORM_CODE VARCHAR(25),
-            SUB_CODE VARCHAR(25),
-            SUB_TYPE VARCHAR(10),
-            SUB_UNIPROT_ID VARCHAR(50),
-            SUB_SYMBOL VARCHAR(4000),
-            SUB_TAXON_CODE VARCHAR(25),
-            SUB_TAXON_COMMON VARCHAR(100),
-            SUB_SITES TEXT,
-            SUB_XREF VARCHAR(25),
-            ENZ_FORM_CODE VARCHAR(25),
-            ENZ_CODE VARCHAR(25),
-            ENZ_TYPE VARCHAR(10),
-            ENZ_UNIPROT_ID VARCHAR(50),
-            ENZ_SYMBOL VARCHAR(4000),
-            ENZ_TAXON_CODE VARCHAR(25),
-            ENZ_TAXON_COMMON VARCHAR(100),
-            ENZ_SITES TEXT,
-            ENZ_XREF VARCHAR(25),
-            EVENT_NAME VARCHAR(50),
-            EVENT_LABEL VARCHAR(10),
-            SOURCE_LABEL VARCHAR(10),
-            IS_AUTO_GENERATED CHAR(1),
-            RESIDUE VARCHAR(1),
-            POSITION BIGINT,
-            MODIFIER VARCHAR(50),
-            NOTE TEXT,
-            PMIDS TEXT,
-            NUM_SUBSTRATES VARCHAR(4000)
-        )",
-        &[],
-    );
-
-    match create_mv_event_result {
-        Ok(_) => info!("CREATED TABLE MV_EVENT"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
-    //create table MV_EFIP
-    let create_mv_efip_result = conn.execute(
-        "CREATE TABLE IF NOT EXISTS MV_EFIP
-        (
-            PPI_EVENT_ID BIGINT,
-            PTM_EVENT_ID BIGINT,
-            IMPACT VARCHAR(50),
-            PPI_SUB_CODE VARCHAR(25),
-            PPI_SUB_TYPE VARCHAR(10),
-            PPI_SUB_SYMBOL VARCHAR(4000),
-            PPI_SUB_TAXON_CODE VARCHAR(25),
-            PPI_SUB_TAXON_COMMON VARCHAR(100),
-            PPI_SUB_SITES TEXT,
-            PPI_PR_CODE VARCHAR(25),
-            PPI_PR_TYPE VARCHAR(10),
-            PPI_PR_SYMBOL VARCHAR(4000),
-            PPI_PR_TAXON_CODE VARCHAR(25),
-            PPI_PR_TAXON_COMMON VARCHAR(100),
-            PPI_SOURCE_LABEL VARCHAR(10),
-            PPI_NOTE TEXT,
-            PPI_PMIDS TEXT,
-            PTM_SUB_CODE VARCHAR(25),
-            PTM_SUB_TYPE VARCHAR(10),
-            PTM_SUB_SYMBOL VARCHAR(4000),
-            PTM_SUB_TAXON_CODE VARCHAR(25),
-            PTM_SUB_TAXON_COMMON VARCHAR(100),
-            PTM_SUB_SITES TEXT,
-            PTM_ENZ_CODE VARCHAR(25),
-            PTM_ENZ_TYPE VARCHAR(10),
-            PTM_ENZ_SYMBOL VARCHAR(4000),
-            PTM_ENZ_TAXON_CODE VARCHAR(25),
-            PTM_ENZ_TAXON_COMMON VARCHAR(100),
-            PTM_EVENT_NAME VARCHAR(50),
-            PTM_EVENT_LABEL VARCHAR(10),
-            PTM_RESIDUE VARCHAR(1),
-            PTM_POSITION BIGINT,
-            PTM_SOURCE_LABEL VARCHAR(10),
-            PTM_NOTE TEXT,
-            PTM_PMIDS TEXT
-        )",
-        &[],
-    );
-
-    match create_mv_efip_result {
-        Ok(_) => info!("CREATED TABLE MV_EFIP"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
+fn populate_mv_entry(conn: &Connection) {
     // Read mv_entry_exported.csv
     let file = File::open("./mv_entry_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -414,7 +377,7 @@ fn main() {
                             IPTM_ENTRY_CODE,
                             IPTM_ENTRY_TYPE,
                             IPTM_ENTRY_SYMBOL,
-                            UNPROT_ID,
+                            UNIPROT_ID,
                             PROTEIN_NAME,
                             GENE_NAME,
                             PROTEIN_SYNONYMS,
@@ -489,7 +452,55 @@ fn main() {
             }
         }
     }
+}
 
+fn create_mv_event(conn: &Connection) {
+    let create_mv_event_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_EVENT
+        (
+            IPTM_EVENT_ID BIGINT NOT NULL,
+            SUB_FORM_CODE VARCHAR(25),
+            SUB_CODE VARCHAR(25),
+            SUB_TYPE VARCHAR(10),
+            SUB_UNIPROT_ID VARCHAR(50),
+            SUB_SYMBOL VARCHAR(4000),
+            SUB_TAXON_CODE VARCHAR(25),
+            SUB_TAXON_COMMON VARCHAR(100),
+            SUB_SITES TEXT,
+            SUB_XREF VARCHAR(25),
+            ENZ_FORM_CODE VARCHAR(25),
+            ENZ_CODE VARCHAR(25),
+            ENZ_TYPE VARCHAR(10),
+            ENZ_UNIPROT_ID VARCHAR(50),
+            ENZ_SYMBOL VARCHAR(4000),
+            ENZ_TAXON_CODE VARCHAR(25),
+            ENZ_TAXON_COMMON VARCHAR(100),
+            ENZ_SITES TEXT,
+            ENZ_XREF VARCHAR(25),
+            EVENT_NAME VARCHAR(50),
+            EVENT_LABEL VARCHAR(10),
+            SOURCE_LABEL VARCHAR(10),
+            IS_AUTO_GENERATED CHAR(1),
+            RESIDUE VARCHAR(1),
+            POSITION BIGINT,
+            MODIFIER VARCHAR(50),
+            NOTE TEXT,
+            PMIDS TEXT,
+            NUM_SUBSTRATES VARCHAR(4000)
+        )",
+        &[],
+    );
+
+    match create_mv_event_result {
+        Ok(_) => info!("CREATED TABLE MV_EVENT"),
+        Err(val) => {
+            error!("{}", val);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn populate_mv_event(conn: &Connection) {
     // Read mv_event_exported.csv
     let file = File::open("./mv_event_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -583,7 +594,61 @@ fn main() {
             }
         }
     }
+}
 
+fn create_mv_efip(conn: &Connection) {
+    let create_mv_efip_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_EFIP
+        (
+            PPI_EVENT_ID BIGINT,
+            PTM_EVENT_ID BIGINT,
+            IMPACT VARCHAR(50),
+            PPI_SUB_CODE VARCHAR(25),
+            PPI_SUB_TYPE VARCHAR(10),
+            PPI_SUB_SYMBOL VARCHAR(4000),
+            PPI_SUB_TAXON_CODE VARCHAR(25),
+            PPI_SUB_TAXON_COMMON VARCHAR(100),
+            PPI_SUB_SITES TEXT,
+            PPI_PR_CODE VARCHAR(25),
+            PPI_PR_TYPE VARCHAR(10),
+            PPI_PR_SYMBOL VARCHAR(4000),
+            PPI_PR_TAXON_CODE VARCHAR(25),
+            PPI_PR_TAXON_COMMON VARCHAR(100),
+            PPI_SOURCE_LABEL VARCHAR(10),
+            PPI_NOTE TEXT,
+            PPI_PMIDS TEXT,
+            PTM_SUB_CODE VARCHAR(25),
+            PTM_SUB_TYPE VARCHAR(10),
+            PTM_SUB_SYMBOL VARCHAR(4000),
+            PTM_SUB_TAXON_CODE VARCHAR(25),
+            PTM_SUB_TAXON_COMMON VARCHAR(100),
+            PTM_SUB_SITES TEXT,
+            PTM_ENZ_CODE VARCHAR(25),
+            PTM_ENZ_TYPE VARCHAR(10),
+            PTM_ENZ_SYMBOL VARCHAR(4000),
+            PTM_ENZ_TAXON_CODE VARCHAR(25),
+            PTM_ENZ_TAXON_COMMON VARCHAR(100),
+            PTM_EVENT_NAME VARCHAR(50),
+            PTM_EVENT_LABEL VARCHAR(10),
+            PTM_RESIDUE VARCHAR(1),
+            PTM_POSITION BIGINT,
+            PTM_SOURCE_LABEL VARCHAR(10),
+            PTM_NOTE TEXT,
+            PTM_PMIDS TEXT
+        )",
+        &[],
+    );
+
+    match create_mv_efip_result {
+        Ok(_) => info!("CREATED TABLE MV_EFIP"),
+        Err(val) => {
+            error!("{}", val);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn populate_mv_efip(conn: &Connection) {
     // Read mv_efip_exported.csv
     let file = File::open("./mv_efip_export.csv").unwrap();
     let buf_reader = BufReader::new(file);
@@ -689,14 +754,113 @@ fn main() {
             }
         }
     }
+}
 
-    //END the transaction
-    let end_transaction_result = conn.execute("COMMIT;", &[]);
-    match end_transaction_result {
-        Ok(_) => info!("END TRANSACTION"),
+fn create_mv_proteo(conn: &Connection) {
+    let create_mv_entry_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS MV_PROTEO
+        (
+            SUB_CODE VARCHAR(25),
+            SUB_TYPE VARCHAR(10),
+            SUB_SYMBOL VARCHAR(4000),
+            SUB_SITES VARCHAR(4000),
+            SUB_XREF VARCHAR(25),
+            ENZ_CODE VARCHAR(25),
+            ENZ_TYPE VARCHAR(10),
+            ENZ_SYMBOL VARCHAR(4000),
+            ENZ_SITES VARCHAR(4000),
+            ENZ_XREF VARCHAR(25),
+            SITES VARCHAR(4000),
+            EVENT_NAME VARCHAR(50) NOT NULL,
+            EVENT_LABEL VARCHAR(10) NOT NULL,
+            SOURCE_LABEL VARCHAR(10) NOT NULL,
+            IS_AUTO_GENERATED CHAR(1) NOT NULL,
+            MODIFIER VARCHAR(50),
+            PMIDS VARCHAR(4000)
+        )",
+        &[],
+    );
+
+    match create_mv_entry_result {
+        Ok(_) => info!("CREATED TABLE MV_PROTEO"),
         Err(val) => {
             error!("{}", val);
             std::process::exit(1);
+        }
+    }
+}
+
+fn populate_mv_proteo(conn: &Connection) {
+    // Read mv_efip_exported.csv
+    let file = File::open("./mv_proteo_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let count: u64 = buf_reader.lines().count() as u64;
+
+    let file = File::open("./mv_proteo_export.csv").unwrap();
+    let buf_reader = BufReader::new(file);
+    let mut rdr = csv::Reader::from_reader(buf_reader);
+
+    info!("POPULATING MV_PROTEO");
+
+    let mut pb = ProgressBar::new(count - 1);
+    pb.format("╢▌▌░╟");
+
+    for result in rdr.deserialize() {
+        //read the entry
+        let mv_proteo: MvProteo = result.unwrap();
+        //insert into postgres
+        let insert_result = conn.execute(
+            "INSERT INTO MV_PROTEO 
+                        (
+                            SUB_CODE,
+                            SUB_TYPE,
+                            SUB_SYMBOL,
+                            SUB_SITES,
+                            SUB_XREF,
+                            ENZ_CODE,
+                            ENZ_TYPE,
+                            ENZ_SYMBOL,
+                            ENZ_SITES,
+                            ENZ_XREF,
+                            SITES,
+                            EVENT_NAME,
+                            EVENT_LABEL,
+                            SOURCE_LABEL,
+                            IS_AUTO_GENERATED,
+                            MODIFIER,
+                            PMIDS
+                        )                     
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)",
+            &[
+                &mv_proteo.SUB_CODE,
+                &mv_proteo.SUB_TYPE,
+                &mv_proteo.SUB_SYMBOL,
+                &mv_proteo.SUB_SITES,
+                &mv_proteo.SUB_XREF,
+                &mv_proteo.ENZ_CODE,
+                &mv_proteo.ENZ_TYPE,
+                &mv_proteo.ENZ_SYMBOL,
+                &mv_proteo.ENZ_SITES,
+                &mv_proteo.ENZ_XREF,
+                &mv_proteo.SITES,
+                &mv_proteo.EVENT_NAME,
+                &mv_proteo.EVENT_LABEL,
+                &mv_proteo.SOURCE_LABEL,
+                &mv_proteo.IS_AUTO_GENERATED,
+                &mv_proteo.MODIFIER,
+                &mv_proteo.PMIDS,
+            ],
+        );
+
+        match insert_result {
+            Ok(_) => {
+                pb.inc();
+            }
+            Err(err) => {
+                error!("{}", err);
+                error!("{:?}", &mv_proteo);
+                std::process::exit(1);
+            }
         }
     }
 }
