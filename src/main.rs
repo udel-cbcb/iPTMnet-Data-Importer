@@ -1,156 +1,14 @@
 extern crate clap;
-extern crate csv;
-extern crate pbr;
 extern crate postgres;
-extern crate serde;
 extern crate simplelog;
 
 #[macro_use]
 extern crate log;
 
-#[macro_use]
-extern crate serde_derive;
-
 use postgres::{Connection, TlsMode};
 use simplelog::*;
 use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
-use pbr::ProgressBar;
 use clap::{App, Arg};
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct MvEntry {
-    IPTM_ENTRY_ID: i64,
-    IPTM_ENTRY_CODE: String,
-    IPTM_ENTRY_TYPE: String,
-    #[serde(deserialize_with = "csv::invalid_option")] IPTM_ENTRY_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] UNIPROT_ID: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PROTEIN_NAME: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] GENE_NAME: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PROTEIN_SYNONYMS: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] GENE_SYNONYMS: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] DEFINITION: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] CATEGORY: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] IS_REVIEWED: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] TAXON_SPECIES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] TAXON_COMMON: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] NOTE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] XREF: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_ENZYME: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_SUBSTRATE: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_PPI: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_SITE: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_FORM: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] ROLE_AS_ENZYME: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ROLE_AS_SUBSTRATE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ROLE_AS_PPI: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] WEIGHT: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] LIST_AS_SUBSTRATE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] LIST_AS_ENZYME: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] HAS_OVERLAP_PTM: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PROTEIN_SYN: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] GENE_SYN: Option<String>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct MvEvent {
-    IPTM_EVENT_ID: i64,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_FORM_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_UNIPROT_ID: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_TAXON_COMMON: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_XREF: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_FORM_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_UNIPROT_ID: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_TAXON_COMMON: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_XREF: Option<String>,
-    EVENT_NAME: String,
-    EVENT_LABEL: String,
-    SOURCE_LABEL: String,
-    IS_AUTO_GENERATED: String,
-    #[serde(deserialize_with = "csv::invalid_option")] RESIDUE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] POSITION: Option<i64>,
-    #[serde(deserialize_with = "csv::invalid_option")] MODIFIER: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] NOTE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PMIDS: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] NUM_SUBSTRATES: Option<String>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct MvEfip {
-    PPI_EVENT_ID: i64,
-    PTM_EVENT_ID: i64,
-    #[serde(deserialize_with = "csv::invalid_option")] IMPACT: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_TAXON_COMMON: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_SUB_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PR_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PR_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PR_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PR_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PR_TAXON_COMMON: Option<String>,
-    PPI_SOURCE_LABEL: String,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_NOTE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PPI_PMIDS: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_TAXON_COMMON: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_SUB_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_ENZ_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_ENZ_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_ENZ_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_ENZ_TAXON_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_ENZ_TAXON_COMMON: Option<String>,
-    PTM_EVENT_NAME: String,
-    PTM_EVENT_LABEL: String,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_RESIDUE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_POSITION: Option<i64>,
-    PTM_SOURCE_LABEL: String,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_NOTE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PTM_PMIDS: Option<String>,
-}
-
-#[allow(non_snake_case)]
-#[derive(Serialize, Deserialize, Debug)]
-struct MvProteo {
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SUB_XREF: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_CODE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_TYPE: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_SYMBOL: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_SITES: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] ENZ_XREF: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] SITES: Option<String>,
-    EVENT_NAME: String,
-    EVENT_LABEL: String,
-    SOURCE_LABEL: String,
-    IS_AUTO_GENERATED: String,
-    #[serde(deserialize_with = "csv::invalid_option")] MODIFIER: Option<String>,
-    #[serde(deserialize_with = "csv::invalid_option")] PMIDS: Option<String>,
-}
 
 fn main() {
     CombinedLogger::init(vec![
@@ -225,7 +83,19 @@ fn main() {
             connection_string.as_str()
         )
     );
-    let conn = Connection::connect(connection_string.as_str(), TlsMode::None).unwrap();
+
+    let conn;
+    let conn_result = Connection::connect(connection_string.as_str(), TlsMode::None);
+    match conn_result {
+        Ok(value) => {
+            conn = value;
+        },
+        Err(error) => {
+            error!("{}", error);
+            std::process::exit(1);
+        }
+    }
+
 
     //START the transaction
     let start_transaction_result = conn.execute("BEGIN;", &[]);
@@ -365,104 +235,43 @@ fn create_mv_entry(conn: &Connection) {
 
 fn populate_mv_entry(conn: &Connection) {
     // Read mv_entry_exported.csv
-    let file = File::open("./mv_entry_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let count: u64 = buf_reader.lines().count() as u64;
-
-    let file = File::open("./mv_entry_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let mut rdr = csv::Reader::from_reader(buf_reader);
-
-    info!("POPULATING MV_ENTRY");
-
-    let mut pb = ProgressBar::new(count - 1);
-    pb.format("╢▌▌░╟");
-
-    for result in rdr.deserialize() {
-        //read the entry
-        let mv_entry: MvEntry = result.unwrap();
-        //insert into postgres
-        let insert_result = conn.execute("INSERT INTO MV_ENTRY 
-                        (
-                            IPTM_ENTRY_ID,
-                            IPTM_ENTRY_CODE,
-                            IPTM_ENTRY_TYPE,
-                            IPTM_ENTRY_SYMBOL,
-                            UNIPROT_ID,
-                            PROTEIN_NAME,
-                            GENE_NAME,
-                            PROTEIN_SYNONYMS,
-                            GENE_SYNONYMS,
-                            DEFINITION,
-                            CATEGORY,
-                            IS_REVIEWED,
-                            TAXON_CODE,
-                            TAXON_SPECIES,
-                            TAXON_COMMON,
-                            NOTE,
-                            SITES,
-                            XREF,
-                            NUM_ENZYME,
-                            NUM_SUBSTRATE,
-                            NUM_PPI,
-                            NUM_SITE,
-                            NUM_FORM,
-                            ROLE_AS_ENZYME,
-                            ROLE_AS_SUBSTRATE,
-                            ROLE_AS_PPI,
-                            WEIGHT,
-                            LIST_AS_SUBSTRATE,
-                            LIST_AS_ENZYME,
-                            HAS_OVERLAP_PTM,
-                            PROTEIN_SYN,
-                            GENE_SYN
-                        )                     
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32)",
-                 &[&mv_entry.IPTM_ENTRY_ID,
-                  &mv_entry.IPTM_ENTRY_CODE,
-                  &mv_entry.IPTM_ENTRY_TYPE,
-                  &mv_entry.IPTM_ENTRY_SYMBOL,
-                  &mv_entry.UNIPROT_ID,
-                  &mv_entry.PROTEIN_NAME,
-                  &mv_entry.GENE_NAME,
-                  &mv_entry.PROTEIN_SYNONYMS,
-                  &mv_entry.GENE_SYNONYMS,
-                  &mv_entry.DEFINITION,
-                  &mv_entry.CATEGORY,
-                  &mv_entry.IS_REVIEWED,
-                  &mv_entry.TAXON_CODE,
-                  &mv_entry.TAXON_SPECIES,
-                  &mv_entry.TAXON_COMMON,
-                  &mv_entry.NOTE,
-                  &mv_entry.SITES,
-                  &mv_entry.XREF,
-                  &mv_entry.NUM_ENZYME,
-                  &mv_entry.NUM_SUBSTRATE,
-                  &mv_entry.NUM_PPI,
-                  &mv_entry.NUM_SITE,
-                  &mv_entry.NUM_FORM,
-                  &mv_entry.ROLE_AS_ENZYME,
-                  &mv_entry.ROLE_AS_SUBSTRATE,
-                  &mv_entry.ROLE_AS_PPI,
-                  &mv_entry.WEIGHT,
-                  &mv_entry.LIST_AS_SUBSTRATE,
-                  &mv_entry.LIST_AS_ENZYME,
-                  &mv_entry.HAS_OVERLAP_PTM,
-                  &mv_entry.PROTEIN_SYN,
-                  &mv_entry.GENE_SYN                           
-                  ]);
-
-        match insert_result {
-            Ok(_) => {
-                pb.inc();
-            }
-            Err(err) => {
-                error!("{}", err);
-                error!("{:?}", &mv_entry);
-                std::process::exit(1);
-            }
+    let mut file;
+    match File::open("./mv_entry_export.csv") {
+        Ok(value) => {
+            file = value;
+        },
+        Err(error) => {
+            error!{"{}",error};
+            std::process::exit(-1);
         }
     }
+
+    info!("POPULATING MV_ENTRY");
+    
+
+    let stmt_result = conn.prepare("COPY mv_entry FROM STDIN DELIMITER ',' CSV HEADER");
+    let stmt;
+    match stmt_result {
+        Ok(value) => {
+            stmt = value;
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    let copy_result = stmt.copy_in(&[], &mut file);
+    match copy_result {
+        Ok(_) => {
+
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
 }
 
 fn create_mv_event(conn: &Connection) {
@@ -513,98 +322,42 @@ fn create_mv_event(conn: &Connection) {
 
 fn populate_mv_event(conn: &Connection) {
     // Read mv_event_exported.csv
-    let file = File::open("./mv_event_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let count: u64 = buf_reader.lines().count() as u64;
-
-    let file = File::open("./mv_event_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let mut rdr = csv::Reader::from_reader(buf_reader);
-
-    info!("POPULATING MV_EVENT");
-
-    let mut pb = ProgressBar::new(count - 1);
-    pb.format("╢▌▌░╟");
-
-    for result in rdr.deserialize() {
-        //read the entry
-        let mv_event: MvEvent = result.unwrap();
-        //insert into postgres
-        let insert_result = conn.execute("INSERT INTO MV_EVENT 
-                        (
-                            IPTM_EVENT_ID,
-                            SUB_FORM_CODE,
-                            SUB_CODE,
-                            SUB_TYPE,
-                            SUB_UNIPROT_ID,
-                            SUB_SYMBOL,
-                            SUB_TAXON_CODE,
-                            SUB_TAXON_COMMON,
-                            SUB_SITES,
-                            SUB_XREF,
-                            ENZ_FORM_CODE,
-                            ENZ_CODE,
-                            ENZ_TYPE,
-                            ENZ_UNIPROT_ID,
-                            ENZ_SYMBOL,
-                            ENZ_TAXON_CODE,
-                            ENZ_TAXON_COMMON,
-                            ENZ_SITES,
-                            ENZ_XREF,
-                            EVENT_NAME,
-                            EVENT_LABEL,
-                            SOURCE_LABEL,
-                            IS_AUTO_GENERATED,
-                            RESIDUE,
-                            POSITION,
-                            MODIFIER,
-                            NOTE,
-                            PMIDS,
-                            NUM_SUBSTRATES
-                        )                     
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)",
-                 &[&mv_event.IPTM_EVENT_ID,
-                  &mv_event.SUB_FORM_CODE,
-                  &mv_event.SUB_CODE,
-                  &mv_event.SUB_TYPE,
-                  &mv_event.SUB_UNIPROT_ID,
-                  &mv_event.SUB_SYMBOL,
-                  &mv_event.SUB_TAXON_CODE,
-                  &mv_event.SUB_TAXON_COMMON,
-                  &mv_event.SUB_SITES,
-                  &mv_event.SUB_XREF,
-                  &mv_event.ENZ_FORM_CODE,
-                  &mv_event.ENZ_CODE,
-                  &mv_event.ENZ_TYPE,
-                  &mv_event.ENZ_UNIPROT_ID,
-                  &mv_event.ENZ_SYMBOL,
-                  &mv_event.ENZ_TAXON_CODE,
-                  &mv_event.ENZ_TAXON_COMMON,
-                  &mv_event.ENZ_SITES,
-                  &mv_event.ENZ_XREF,
-                  &mv_event.EVENT_NAME,
-                  &mv_event.EVENT_LABEL,
-                  &mv_event.SOURCE_LABEL,
-                  &mv_event.IS_AUTO_GENERATED,
-                  &mv_event.RESIDUE,
-                  &mv_event.POSITION,
-                  &mv_event.MODIFIER,
-                  &mv_event.NOTE,
-                  &mv_event.PMIDS,
-                  &mv_event.NUM_SUBSTRATES                           
-                  ]);
-
-        match insert_result {
-            Ok(_) => {
-                pb.inc();
-            }
-            Err(err) => {
-                error!("{}", err);
-                error!("{:?}", &mv_event);
-                std::process::exit(1);
-            }
+    let mut file;
+    match File::open("./mv_event_export.csv") {
+        Ok(value) => {
+            file = value;
+        },
+        Err(error) => {
+            error!{"{}",error};
+            std::process::exit(-1);
         }
     }
+    
+    info!("POPULATING MV_EVENT");
+
+    let stmt_result = conn.prepare("COPY mv_event FROM STDIN DELIMITER ',' CSV HEADER");
+    let stmt;
+    match stmt_result {
+        Ok(value) => {
+            stmt = value;
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    let copy_result = stmt.copy_in(&[], &mut file);
+    match copy_result {
+        Ok(_) => {
+
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+    
 }
 
 fn create_mv_efip(conn: &Connection) {
@@ -661,110 +414,42 @@ fn create_mv_efip(conn: &Connection) {
 
 fn populate_mv_efip(conn: &Connection) {
     // Read mv_efip_exported.csv
-    let file = File::open("./mv_efip_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let count: u64 = buf_reader.lines().count() as u64;
-
-    let file = File::open("./mv_efip_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let mut rdr = csv::Reader::from_reader(buf_reader);
-
-    info!("POPULATING MV_EFIP");
-
-    let mut pb = ProgressBar::new(count - 1);
-    pb.format("╢▌▌░╟");
-
-    for result in rdr.deserialize() {
-        //read the entry
-        let mv_efip: MvEfip = result.unwrap();
-        //insert into postgres
-        let insert_result = conn.execute("INSERT INTO MV_EFIP 
-                        (
-                            PPI_EVENT_ID,
-                            PTM_EVENT_ID,
-                            IMPACT,
-                            PPI_SUB_CODE,
-                            PPI_SUB_TYPE,
-                            PPI_SUB_SYMBOL,
-                            PPI_SUB_TAXON_CODE,
-                            PPI_SUB_TAXON_COMMON,
-                            PPI_SUB_SITES,
-                            PPI_PR_CODE,
-                            PPI_PR_TYPE,
-                            PPI_PR_SYMBOL,
-                            PPI_PR_TAXON_CODE,
-                            PPI_PR_TAXON_COMMON,
-                            PPI_SOURCE_LABEL,
-                            PPI_NOTE,
-                            PPI_PMIDS,
-                            PTM_SUB_CODE,
-                            PTM_SUB_TYPE,
-                            PTM_SUB_SYMBOL,
-                            PTM_SUB_TAXON_CODE,
-                            PTM_SUB_TAXON_COMMON,
-                            PTM_SUB_SITES,
-                            PTM_ENZ_CODE,
-                            PTM_ENZ_TYPE,
-                            PTM_ENZ_SYMBOL,
-                            PTM_ENZ_TAXON_CODE,
-                            PTM_ENZ_TAXON_COMMON,
-                            PTM_EVENT_NAME,
-                            PTM_EVENT_LABEL,
-                            PTM_RESIDUE,
-                            PTM_POSITION,
-                            PTM_SOURCE_LABEL,
-                            PTM_NOTE,
-                            PTM_PMIDS
-                        )                     
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)",
-                 &[&mv_efip.PPI_EVENT_ID,
-                  &mv_efip.PTM_EVENT_ID,
-                  &mv_efip.IMPACT,
-                  &mv_efip.PPI_SUB_CODE,
-                  &mv_efip.PPI_SUB_TYPE,
-                  &mv_efip.PPI_SUB_SYMBOL,
-                  &mv_efip.PPI_SUB_TAXON_CODE,
-                  &mv_efip.PPI_SUB_TAXON_COMMON,
-                  &mv_efip.PPI_SUB_SITES,
-                  &mv_efip.PPI_PR_CODE,
-                  &mv_efip.PPI_PR_TYPE,
-                  &mv_efip.PPI_PR_SYMBOL,
-                  &mv_efip.PPI_PR_TAXON_CODE,
-                  &mv_efip.PPI_PR_TAXON_COMMON,
-                  &mv_efip.PPI_SOURCE_LABEL,
-                  &mv_efip.PPI_NOTE,
-                  &mv_efip.PPI_PMIDS,
-                  &mv_efip.PTM_SUB_CODE,
-                  &mv_efip.PTM_SUB_TYPE,
-                  &mv_efip.PTM_SUB_SYMBOL,
-                  &mv_efip.PTM_SUB_TAXON_CODE,
-                  &mv_efip.PTM_SUB_TAXON_COMMON,
-                  &mv_efip.PTM_SUB_SITES,
-                  &mv_efip.PTM_ENZ_CODE,
-                  &mv_efip.PTM_ENZ_TYPE,
-                  &mv_efip.PTM_ENZ_SYMBOL,
-                  &mv_efip.PTM_ENZ_TAXON_CODE,
-                  &mv_efip.PTM_ENZ_TAXON_COMMON,
-                  &mv_efip.PTM_EVENT_NAME,
-                  &mv_efip.PTM_EVENT_LABEL,
-                  &mv_efip.PTM_RESIDUE,
-                  &mv_efip.PTM_POSITION,
-                  &mv_efip.PTM_SOURCE_LABEL,
-                  &mv_efip.PTM_NOTE,
-                  &mv_efip.PTM_PMIDS                                       
-                  ]);
-
-        match insert_result {
-            Ok(_) => {
-                pb.inc();
-            }
-            Err(err) => {
-                error!("{}", err);
-                error!("{:?}", &mv_efip);
-                std::process::exit(1);
-            }
+    let mut file;
+    match File::open("./mv_efip_export.csv") {
+        Ok(value) => {
+            file = value;
+        },
+        Err(error) => {
+            error!{"{}",error};
+            std::process::exit(-1);
         }
     }
+ 
+    info!("POPULATING MV_EFIP");
+
+    let stmt_result = conn.prepare("COPY mv_efip FROM STDIN DELIMITER ',' CSV HEADER");
+    let stmt;
+    match stmt_result {
+        Ok(value) => {
+            stmt = value;
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    let copy_result = stmt.copy_in(&[], &mut file);
+    match copy_result {
+        Ok(_) => {
+
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
 }
 
 fn create_mv_proteo(conn: &Connection) {
@@ -802,76 +487,40 @@ fn create_mv_proteo(conn: &Connection) {
 }
 
 fn populate_mv_proteo(conn: &Connection) {
-    // Read mv_efip_exported.csv
-    let file = File::open("./mv_proteo_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let count: u64 = buf_reader.lines().count() as u64;
-
-    let file = File::open("./mv_proteo_export.csv").unwrap();
-    let buf_reader = BufReader::new(file);
-    let mut rdr = csv::Reader::from_reader(buf_reader);
+    // Read mv_proteo_exported.csv
+    let mut file;
+    match File::open("./mv_proteo_export.csv") {
+        Ok(value) => {
+            file = value;
+        },
+        Err(error) => {
+            error!{"{}",error};
+            std::process::exit(-1);
+        }
+    }
 
     info!("POPULATING MV_PROTEO");
 
-    let mut pb = ProgressBar::new(count - 1);
-    pb.format("╢▌▌░╟");
+    let stmt_result = conn.prepare("COPY mv_proteo FROM STDIN DELIMITER ',' CSV HEADER");
+    let stmt;
+    match stmt_result {
+        Ok(value) => {
+            stmt = value;
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
 
-    for result in rdr.deserialize() {
-        //read the entry
-        let mv_proteo: MvProteo = result.unwrap();
-        //insert into postgres
-        let insert_result = conn.execute(
-            "INSERT INTO MV_PROTEO 
-                        (
-                            SUB_CODE,
-                            SUB_TYPE,
-                            SUB_SYMBOL,
-                            SUB_SITES,
-                            SUB_XREF,
-                            ENZ_CODE,
-                            ENZ_TYPE,
-                            ENZ_SYMBOL,
-                            ENZ_SITES,
-                            ENZ_XREF,
-                            SITES,
-                            EVENT_NAME,
-                            EVENT_LABEL,
-                            SOURCE_LABEL,
-                            IS_AUTO_GENERATED,
-                            MODIFIER,
-                            PMIDS
-                        )                     
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)",
-            &[
-                &mv_proteo.SUB_CODE,
-                &mv_proteo.SUB_TYPE,
-                &mv_proteo.SUB_SYMBOL,
-                &mv_proteo.SUB_SITES,
-                &mv_proteo.SUB_XREF,
-                &mv_proteo.ENZ_CODE,
-                &mv_proteo.ENZ_TYPE,
-                &mv_proteo.ENZ_SYMBOL,
-                &mv_proteo.ENZ_SITES,
-                &mv_proteo.ENZ_XREF,
-                &mv_proteo.SITES,
-                &mv_proteo.EVENT_NAME,
-                &mv_proteo.EVENT_LABEL,
-                &mv_proteo.SOURCE_LABEL,
-                &mv_proteo.IS_AUTO_GENERATED,
-                &mv_proteo.MODIFIER,
-                &mv_proteo.PMIDS,
-            ],
-        );
+    let copy_result = stmt.copy_in(&[], &mut file);
+    match copy_result {
+        Ok(_) => {
 
-        match insert_result {
-            Ok(_) => {
-                pb.inc();
-            }
-            Err(err) => {
-                error!("{}", err);
-                error!("{:?}", &mv_proteo);
-                std::process::exit(1);
-            }
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
         }
     }
 }
