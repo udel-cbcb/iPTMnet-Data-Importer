@@ -173,10 +173,6 @@ fn main() {
     //populate mv_proteo
     populate_mv_proteo(&conn);
 
-    //create index
-    create_index(&conn);
-
-
     //END the transaction
     let end_transaction_result = conn.execute("COMMIT;", &[]);
     match end_transaction_result {
@@ -186,6 +182,10 @@ fn main() {
             std::process::exit(1);
         }
     }
+
+    //create index
+    create_index(&conn);
+
 }
 
 fn create_mv_entry(conn: &Connection) {
@@ -532,7 +532,7 @@ fn populate_mv_proteo(conn: &Connection) {
 fn create_index(conn: &Connection) {
     //uniprot_id index
     info!("CREATING uniprot_id index"); 
-    let uniprot_id_index_result = conn.prepare("CREATE INDEX uniprot_id_idx on MV_ENTRY (uniprot_id)");
+    let uniprot_id_index_result = conn.execute("CREATE INDEX uniprot_id_idx on MV_ENTRY (uniprot_id)",&[]);
     match uniprot_id_index_result {
         Ok(_value) => {
             info!("CREATED uniprot_id index");
@@ -545,7 +545,7 @@ fn create_index(conn: &Connection) {
 
     //protein_name index
     info!("CREATING protein_name  index"); 
-    let protein_name_index_result = conn.prepare("CREATE INDEX protein_name_idx on MV_ENTRY (protein_name)");
+    let protein_name_index_result = conn.execute("CREATE INDEX protein_name_idx on MV_ENTRY (protein_name)",&[]);
     match protein_name_index_result {
         Ok(_value) => {
             info!("CREATED protein_name index");
@@ -558,7 +558,7 @@ fn create_index(conn: &Connection) {
 
     //gene_name index
     info!("CREATING gene_name index"); 
-    let gene_name_index_result = conn.prepare("CREATE INDEX gene_name_idx on MV_ENTRY (gene_name)");
+    let gene_name_index_result = conn.execute("CREATE INDEX gene_name_idx on MV_ENTRY (gene_name)",&[]);
     match gene_name_index_result {
         Ok(_value) => {
             info!("CREATED gene_name index");
@@ -571,7 +571,7 @@ fn create_index(conn: &Connection) {
 
     //role_as_enzyme  index
     info!("CREATING role_as_enzyme index"); 
-    let role_as_enzyme_index_result = conn.prepare("CREATE INDEX role_as_enzyme_idx on MV_ENTRY (role_as_enzyme)");
+    let role_as_enzyme_index_result = conn.execute("CREATE INDEX role_as_enzyme_idx on MV_ENTRY (role_as_enzyme)",&[]);
     match role_as_enzyme_index_result {
         Ok(_value) => {
             info!("CREATED role_as_enzyme index");
@@ -584,7 +584,7 @@ fn create_index(conn: &Connection) {
 
     //role_as_substrate index
     info!("CREATING role_as_substrate index"); 
-    let role_as_substrate_index_result = conn.prepare("CREATE INDEX role_as_substrate_idx on MV_ENTRY (role_as_substrate)");
+    let role_as_substrate_index_result = conn.execute("CREATE INDEX role_as_substrate_idx on MV_ENTRY (role_as_substrate)",&[]);
     match role_as_substrate_index_result {
         Ok(_value) => {
             info!("CREATED role_as_substrate index");
@@ -597,7 +597,7 @@ fn create_index(conn: &Connection) {
 
     //taxon_code index
     info!("CREATING taxon_code index"); 
-    let taxon_code_index_result = conn.prepare("CREATE INDEX taxon_code_idx on MV_ENTRY (taxon_code)");
+    let taxon_code_index_result = conn.execute("CREATE INDEX taxon_code_idx on MV_ENTRY (taxon_code)",&[]);
     match taxon_code_index_result {
         Ok(_value) => {
             info!("CREATED taxon_code index");
@@ -610,7 +610,7 @@ fn create_index(conn: &Connection) {
 
     //iptm_entry_code index
     info!("CREATING iptm_entry_code index"); 
-    let iptm_entry_code_index_result = conn.prepare("CREATE INDEX iptm_entry_code_idx on MV_ENTRY (iptm_entry_code)");
+    let iptm_entry_code_index_result = conn.execute("CREATE INDEX iptm_entry_code_idx on MV_ENTRY (iptm_entry_code)",&[]);
     match iptm_entry_code_index_result {
         Ok(_value) => {
             info!("CREATED iptm_entry_code index");
@@ -623,7 +623,7 @@ fn create_index(conn: &Connection) {
     
     //sub_code index
     info!("CREATING sub_code index"); 
-    let sub_code_index_result = conn.prepare("CREATE INDEX sub_code_idx on MV_EVENT (sub_code)");
+    let sub_code_index_result = conn.execute("CREATE INDEX sub_code_idx on MV_EVENT (sub_code)",&[]);
     match sub_code_index_result {
         Ok(_value) => {
             info!("CREATED sub_code index");
@@ -636,7 +636,7 @@ fn create_index(conn: &Connection) {
     
     //residue index
     info!("CREATING residue index"); 
-    let residue_index_result = conn.prepare("CREATE INDEX residue_idx on MV_EVENT (residue)");
+    let residue_index_result = conn.execute("CREATE INDEX residue_idx on MV_EVENT (residue)",&[]);
     match residue_index_result {
         Ok(_value) => {
             info!("CREATED residue index");
@@ -649,7 +649,7 @@ fn create_index(conn: &Connection) {
 
     //position index
     info!("CREATING position index"); 
-    let position_index_result = conn.prepare("CREATE INDEX position_idx on MV_EVENT (position)");
+    let position_index_result = conn.execute("CREATE INDEX position_idx on MV_EVENT (position)",&[]);
     match position_index_result {
         Ok(_value) => {
             info!("CREATED position index");
@@ -662,7 +662,7 @@ fn create_index(conn: &Connection) {
 
     //enz_code null index
     info!("CREATING enz_code_null index"); 
-    let ptm_enzyme_index_result = conn.prepare("CREATE INDEX enz_code_null_idx on MV_EVENT (enz_code)");
+    let ptm_enzyme_index_result = conn.execute("CREATE INDEX enz_code_null_idx on MV_EVENT (enz_code)",&[]);
     match ptm_enzyme_index_result {
         Ok(_value) => {
             info!("CREATED enz_code_null_index");
@@ -675,7 +675,7 @@ fn create_index(conn: &Connection) {
 
     //SUB_FORM_CODE index
     info!("CREATING SUB_FORM_CODE index"); 
-    let sub_form_index_result = conn.prepare("CREATE INDEX sub_form_code_idx on MV_EVENT (SUB_FORM_CODE)");
+    let sub_form_index_result = conn.execute("CREATE INDEX sub_form_code_idx on MV_EVENT (SUB_FORM_CODE)",&[]);
     match sub_form_index_result {
         Ok(_value) => {
             info!("CREATED SUB_FORM_CODE index");
@@ -688,7 +688,7 @@ fn create_index(conn: &Connection) {
 
     //EVENT_NAME index
     info!("CREATING EVENT_NAME index"); 
-    let event_name_index_result = conn.prepare("CREATE INDEX event_name_idx on MV_EVENT (EVENT_NAME)");
+    let event_name_index_result = conn.execute("CREATE INDEX event_name_idx on MV_EVENT (EVENT_NAME)",&[]);
     match event_name_index_result {
         Ok(_value) => {
             info!("CREATED EVENT_NAME index");
