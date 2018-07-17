@@ -1,19 +1,21 @@
 extern crate clap;
 extern crate postgres;
 extern crate simplelog;
+extern crate env_logger;
 
 #[macro_use]
 extern crate log;
 
 use postgres::{Connection, TlsMode};
-use simplelog::*;
 use std::fs::File;
 use clap::{App, Arg};
 
 fn main() {
-    CombinedLogger::init(vec![
-        TermLogger::new(LevelFilter::Info, Config::default()).unwrap(),
-    ]).unwrap();
+    std::env::set_var("RUST_LOG", "iptmnet_data_importer");
+    env_logger::Builder::from_default_env()
+        .default_format_timestamp(false)
+        .default_format_module_path(false)
+        .init();
 
     let matches = App::new("iPTMnet data importer")
         .version("1.0")
@@ -160,6 +162,9 @@ fn main() {
 
     //create table MV_PROTEO
     create_mv_proteo(&conn);
+    
+    //create table SEQUENCES
+    create_sequence(&conn);
 
     //populate mv_entry
     populate_mv_entry(&conn);
@@ -172,6 +177,9 @@ fn main() {
     
     //populate mv_proteo
     populate_mv_proteo(&conn);
+
+    //populate sequences
+    populate_sequence(&conn);
 
     //END the transaction
     let end_transaction_result = conn.execute("COMMIT;", &[]);
@@ -529,6 +537,64 @@ fn populate_mv_proteo(conn: &Connection) {
     }
 }
 
+fn create_sequence(conn: &Connection) {
+    let create_mv_entry_result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS SEQUENCE
+        (
+            ID VARCHAR(25),
+            SEQ TEXT
+        )",
+        &[],
+    );
+
+    match create_mv_entry_result {
+        Ok(_) => info!("CREATED TABLE MV_PROTEO"),
+        Err(val) => {
+            error!("{}", val);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn populate_sequence(conn: &Connection) {
+    // Read sequences.csv
+    let mut file;
+    match File::open("./sequences.csv") {
+        Ok(value) => {
+            file = value;
+        },
+        Err(error) => {
+            error!{"{}",error};
+            std::process::exit(-1);
+        }
+    }
+
+    info!("POPULATING SEQUENCE");
+
+    let stmt_result = conn.prepare("COPY sequence FROM STDIN DELIMITER ',' CSV HEADER");
+    let stmt;
+    match stmt_result {
+        Ok(value) => {
+            stmt = value;
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    let copy_result = stmt.copy_in(&[], &mut file);
+    match copy_result {
+        Ok(_) => {
+
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+}
+
 fn create_index(conn: &Connection) {
     //uniprot_id index
     info!("CREATING uniprot_id index"); 
@@ -692,6 +758,19 @@ fn create_index(conn: &Connection) {
     match event_name_index_result {
         Ok(_value) => {
             info!("CREATED EVENT_NAME index");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //SEQ_ID index
+    info!("CREATING SEQ_ID index"); 
+    let event_name_index_result = conn.execute("CREATE INDEX seq_id_idx on SEQUENCE (ID)",&[]);
+    match event_name_index_result {
+        Ok(_value) => {
+            info!("CREATED SEQ_ID index");
         },
         Err(error) => {
             error!("{}",error);
