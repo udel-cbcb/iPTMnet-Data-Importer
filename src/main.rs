@@ -2,6 +2,8 @@ extern crate clap;
 extern crate postgres;
 extern crate simplelog;
 extern crate env_logger;
+use std::io;
+use std::io::Write;
 
 #[macro_use]
 extern crate log;
@@ -108,6 +110,9 @@ fn main() {
             std::process::exit(1);
         }
     }
+
+    //DROP indexes
+    drop_index(&conn);
 
     //drop table MV_ENTRY
     let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_ENTRY;", &[]);
@@ -595,13 +600,29 @@ fn populate_sequence(conn: &Connection) {
     }
 }
 
+fn drop_index(conn: &Connection) {
+    //SEQ_ID index
+    log("CREATING SEQ_ID index...");
+    let event_name_index_result = conn.execute("DROP INDEX IF EXISTS seq_id_idx",&[]);
+    match event_name_index_result {
+        Ok(_value) => {
+            logln("Done");
+            io::stdout().flush().unwrap();
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+}
+
 fn create_index(conn: &Connection) {
     //uniprot_id index
-    info!("CREATING uniprot_id index"); 
+    log("CREATING uniprot_id index..."); 
     let uniprot_id_index_result = conn.execute("CREATE INDEX uniprot_id_idx on MV_ENTRY (uniprot_id)",&[]);
     match uniprot_id_index_result {
         Ok(_value) => {
-            info!("CREATED uniprot_id index");
+            logln("Done");
         },
         Err(error) => {
             error!("{}",error);
@@ -610,11 +631,11 @@ fn create_index(conn: &Connection) {
     }
 
     //protein_name index
-    info!("CREATING protein_name  index"); 
+    log("CREATING protein_name index..."); 
     let protein_name_index_result = conn.execute("CREATE INDEX protein_name_idx on MV_ENTRY (protein_name)",&[]);
     match protein_name_index_result {
         Ok(_value) => {
-            info!("CREATED protein_name index");
+            logln("CREATED protein_name index");
         },
         Err(error) => {
             error!("{}",error);
@@ -623,11 +644,11 @@ fn create_index(conn: &Connection) {
     }
 
     //gene_name index
-    info!("CREATING gene_name index"); 
+    log("CREATING gene_name index"); 
     let gene_name_index_result = conn.execute("CREATE INDEX gene_name_idx on MV_ENTRY (gene_name)",&[]);
     match gene_name_index_result {
         Ok(_value) => {
-            info!("CREATED gene_name index");
+            logln("CREATED gene_name index");
         },
         Err(error) => {
             error!("{}",error);
@@ -636,11 +657,11 @@ fn create_index(conn: &Connection) {
     }
 
     //role_as_enzyme  index
-    info!("CREATING role_as_enzyme index"); 
+    log("CREATING role_as_enzyme index"); 
     let role_as_enzyme_index_result = conn.execute("CREATE INDEX role_as_enzyme_idx on MV_ENTRY (role_as_enzyme)",&[]);
     match role_as_enzyme_index_result {
         Ok(_value) => {
-            info!("CREATED role_as_enzyme index");
+            logln("CREATED role_as_enzyme index");
         },
         Err(error) => {
             error!("{}",error);
@@ -649,11 +670,11 @@ fn create_index(conn: &Connection) {
     }
 
     //role_as_substrate index
-    info!("CREATING role_as_substrate index"); 
+    log("CREATING role_as_substrate index"); 
     let role_as_substrate_index_result = conn.execute("CREATE INDEX role_as_substrate_idx on MV_ENTRY (role_as_substrate)",&[]);
     match role_as_substrate_index_result {
         Ok(_value) => {
-            info!("CREATED role_as_substrate index");
+            logln("CREATED role_as_substrate index");
         },
         Err(error) => {
             error!("{}",error);
@@ -662,11 +683,11 @@ fn create_index(conn: &Connection) {
     }
 
     //taxon_code index
-    info!("CREATING taxon_code index"); 
+    log("CREATING taxon_code index"); 
     let taxon_code_index_result = conn.execute("CREATE INDEX taxon_code_idx on MV_ENTRY (taxon_code)",&[]);
     match taxon_code_index_result {
         Ok(_value) => {
-            info!("CREATED taxon_code index");
+            logln("CREATED taxon_code index");
         },
         Err(error) => {
             error!("{}",error);
@@ -675,11 +696,11 @@ fn create_index(conn: &Connection) {
     }
 
     //iptm_entry_code index
-    info!("CREATING iptm_entry_code index"); 
+    log("CREATING iptm_entry_code index"); 
     let iptm_entry_code_index_result = conn.execute("CREATE INDEX iptm_entry_code_idx on MV_ENTRY (iptm_entry_code)",&[]);
     match iptm_entry_code_index_result {
         Ok(_value) => {
-            info!("CREATED iptm_entry_code index");
+            logln("CREATED iptm_entry_code index");
         },
         Err(error) => {
             error!("{}",error);
@@ -777,6 +798,14 @@ fn create_index(conn: &Connection) {
             std::process::exit(-1);
         }
     }
+}
 
+fn log(msg: &str){
+    print!("{}",msg);
+    io::stdout().flush().unwrap(); 
+}
 
+fn logln(msg: &str){
+    println!("{}",msg);
+    io::stdout().flush().unwrap(); 
 }
