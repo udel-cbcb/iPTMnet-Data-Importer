@@ -114,47 +114,8 @@ fn main() {
     //DROP indexes
     drop_index(&conn);
 
-    //drop table MV_ENTRY
-    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_ENTRY;", &[]);
-    match drop_mv_entry_result {
-        Ok(_) => info!("DROPPED TABLE MV_ENTRY"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
-    //drop table MV_EVENT
-    let drop_mv_event_result = conn.execute("DROP TABLE IF EXISTS MV_EVENT;", &[]);
-    match drop_mv_event_result {
-        Ok(_) => info!("DROPPED TABLE MV_EVENT"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
-    //drop table MV_EFIP
-    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_EFIP;", &[]);
-    match drop_mv_entry_result {
-        Ok(_) => info!("DROPPED TABLE MV_EFIP"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
-
-    //drop table MV_EFIP
-    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_PROTEO;", &[]);
-    match drop_mv_entry_result {
-        Ok(_) => info!("DROPPED TABLE MV_PROTEO"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
-        }
-    }
-
+    //DROP tables
+    drop_tables(&conn);
     
     //create table MV_ENTRY
     create_mv_entry(&conn);
@@ -186,6 +147,9 @@ fn main() {
     //populate sequences
     populate_sequence(&conn);
 
+    //create index
+    create_index(&conn);
+
     //END the transaction
     let end_transaction_result = conn.execute("COMMIT;", &[]);
     match end_transaction_result {
@@ -196,12 +160,80 @@ fn main() {
         }
     }
 
-    //create index
-    create_index(&conn);
+}
 
+fn drop_tables(conn: &Connection) {
+    //drop table MV_ENTRY
+    log("DROPPING MV_ENTRY...");
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_ENTRY;", &[]);
+    match drop_mv_entry_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //drop table MV_EVENT
+    log("DROPPING MV_EVENT...");
+    let drop_mv_event_result = conn.execute("DROP TABLE IF EXISTS MV_EVENT;", &[]);
+    match drop_mv_event_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //drop table MV_EFIP
+    log("DROPPING MV_EFIP...");
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_EFIP;", &[]);
+    match drop_mv_entry_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+
+    //drop table MV_EFIP
+    log("DROPPING MV_PROTEO...");
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS MV_PROTEO;", &[]);
+    match drop_mv_entry_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+
+    //drop table SEQUENCE
+    log("DROPPING SEQUENCE...");
+    let drop_mv_entry_result = conn.execute("DROP TABLE IF EXISTS SEQUENCE;", &[]);
+    match drop_mv_entry_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
 }
 
 fn create_mv_entry(conn: &Connection) {
+    log("CREATING MV_ENTRY...");
+
     let create_mv_entry_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS MV_ENTRY
         (
@@ -242,10 +274,12 @@ fn create_mv_entry(conn: &Connection) {
     );
 
     match create_mv_entry_result {
-        Ok(_) => info!("CREATED TABLE MV_ENTRY"),
-        Err(val) => {
-            error!("{}", val);
-            std::process::exit(1);
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
         }
     }
 }
@@ -263,9 +297,8 @@ fn populate_mv_entry(conn: &Connection) {
         }
     }
 
-    info!("POPULATING MV_ENTRY");
+    log("POPULATING MV_ENTRY...");
     
-
     let stmt_result = conn.prepare("COPY mv_entry FROM STDIN DELIMITER ',' CSV HEADER");
     let stmt;
     match stmt_result {
@@ -281,7 +314,7 @@ fn populate_mv_entry(conn: &Connection) {
     let copy_result = stmt.copy_in(&[], &mut file);
     match copy_result {
         Ok(_) => {
-
+            logln("DONE")
         },
         Err(error) => {
             error!("{}",error);
@@ -292,6 +325,7 @@ fn populate_mv_entry(conn: &Connection) {
 }
 
 fn create_mv_event(conn: &Connection) {
+    log("CREATING MV_EVENT...");
     let create_mv_event_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS MV_EVENT
         (
@@ -329,7 +363,7 @@ fn create_mv_event(conn: &Connection) {
     );
 
     match create_mv_event_result {
-        Ok(_) => info!("CREATED TABLE MV_EVENT"),
+        Ok(_) => logln("DONE"),
         Err(val) => {
             error!("{}", val);
             std::process::exit(1);
@@ -350,7 +384,7 @@ fn populate_mv_event(conn: &Connection) {
         }
     }
     
-    info!("POPULATING MV_EVENT");
+    log("POPULATING MV_EVENT...");
 
     let stmt_result = conn.prepare("COPY mv_event FROM STDIN DELIMITER ',' CSV HEADER");
     let stmt;
@@ -367,7 +401,7 @@ fn populate_mv_event(conn: &Connection) {
     let copy_result = stmt.copy_in(&[], &mut file);
     match copy_result {
         Ok(_) => {
-
+            logln("DONE")
         },
         Err(error) => {
             error!("{}",error);
@@ -378,6 +412,7 @@ fn populate_mv_event(conn: &Connection) {
 }
 
 fn create_mv_efip(conn: &Connection) {
+    log("CREATING MV_EFIP...");
     let create_mv_efip_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS MV_EFIP
         (
@@ -421,7 +456,7 @@ fn create_mv_efip(conn: &Connection) {
     );
 
     match create_mv_efip_result {
-        Ok(_) => info!("CREATED TABLE MV_EFIP"),
+        Ok(_) => logln("DONE"),
         Err(val) => {
             error!("{}", val);
             std::process::exit(1);
@@ -442,7 +477,7 @@ fn populate_mv_efip(conn: &Connection) {
         }
     }
  
-    info!("POPULATING MV_EFIP");
+    log("POPULATING MV_EFIP...");
 
     let stmt_result = conn.prepare("COPY mv_efip FROM STDIN DELIMITER ',' CSV HEADER");
     let stmt;
@@ -459,7 +494,7 @@ fn populate_mv_efip(conn: &Connection) {
     let copy_result = stmt.copy_in(&[], &mut file);
     match copy_result {
         Ok(_) => {
-
+            logln("DONE")
         },
         Err(error) => {
             error!("{}",error);
@@ -470,6 +505,7 @@ fn populate_mv_efip(conn: &Connection) {
 }
 
 fn create_mv_proteo(conn: &Connection) {
+    log("CREATING MV_PROTEO...");
     let create_mv_entry_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS MV_PROTEO
         (
@@ -495,7 +531,7 @@ fn create_mv_proteo(conn: &Connection) {
     );
 
     match create_mv_entry_result {
-        Ok(_) => info!("CREATED TABLE MV_PROTEO"),
+        Ok(_) => logln("DONE"),
         Err(val) => {
             error!("{}", val);
             std::process::exit(1);
@@ -516,7 +552,7 @@ fn populate_mv_proteo(conn: &Connection) {
         }
     }
 
-    info!("POPULATING MV_PROTEO");
+    log("POPULATING MV_PROTEO...");
 
     let stmt_result = conn.prepare("COPY mv_proteo FROM STDIN DELIMITER ',' CSV HEADER");
     let stmt;
@@ -533,7 +569,7 @@ fn populate_mv_proteo(conn: &Connection) {
     let copy_result = stmt.copy_in(&[], &mut file);
     match copy_result {
         Ok(_) => {
-
+            logln("DONE")
         },
         Err(error) => {
             error!("{}",error);
@@ -543,6 +579,7 @@ fn populate_mv_proteo(conn: &Connection) {
 }
 
 fn create_sequence(conn: &Connection) {
+    log("CREATING SEQUENCE...");
     let create_mv_entry_result = conn.execute(
         "CREATE TABLE IF NOT EXISTS SEQUENCE
         (
@@ -553,7 +590,7 @@ fn create_sequence(conn: &Connection) {
     );
 
     match create_mv_entry_result {
-        Ok(_) => info!("CREATED TABLE MV_PROTEO"),
+        Ok(_) => logln("DONE"),
         Err(val) => {
             error!("{}", val);
             std::process::exit(1);
@@ -574,7 +611,7 @@ fn populate_sequence(conn: &Connection) {
         }
     }
 
-    info!("POPULATING SEQUENCE");
+    log("POPULATING SEQUENCE...");
 
     let stmt_result = conn.prepare("COPY sequence FROM STDIN DELIMITER ',' CSV HEADER");
     let stmt;
@@ -591,7 +628,7 @@ fn populate_sequence(conn: &Connection) {
     let copy_result = stmt.copy_in(&[], &mut file);
     match copy_result {
         Ok(_) => {
-
+            logln("DONE")
         },
         Err(error) => {
             error!("{}",error);
@@ -601,12 +638,181 @@ fn populate_sequence(conn: &Connection) {
 }
 
 fn drop_index(conn: &Connection) {
+    //uniprot_id index
+    log("DROPPING uniprot_id index..."); 
+    let uniprot_id_index_result = conn.execute("DROP INDEX if exists uniprot_id_idx",&[]);
+    match uniprot_id_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //protein_name index
+    log("DROPPING protein_name index..."); 
+    let protein_name_index_result = conn.execute("DROP INDEX if exists protein_name_idx",&[]);
+    match protein_name_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //gene_name index
+    log("DROPPING gene_name index..."); 
+    let gene_name_index_result = conn.execute("DROP INDEX if exists gene_name_idx",&[]);
+    match gene_name_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //role_as_enzyme  index
+    log("DROPPING role_as_enzyme index..."); 
+    let role_as_enzyme_index_result = conn.execute("DROP INDEX if exists role_as_enzyme_idx",&[]);
+    match role_as_enzyme_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //role_as_substrate index
+    log("DROPPING role_as_substrate index..."); 
+    let role_as_substrate_index_result = conn.execute("DROP INDEX if exists role_as_substrate_idx",&[]);
+    match role_as_substrate_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //taxon_code index
+    log("DROPPING taxon_code index..."); 
+    let taxon_code_index_result = conn.execute("DROP INDEX if exists taxon_code_idx",&[]);
+    match taxon_code_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //iptm_entry_code index
+    log("DROPPING iptm_entry_code index..."); 
+    let iptm_entry_code_index_result = conn.execute("DROP INDEX if exists iptm_entry_code_idx",&[]);
+    match iptm_entry_code_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+    
+    //sub_code index
+    log("DROPPING sub_code index..."); 
+    let sub_code_index_result = conn.execute("DROP INDEX if exists sub_code_idx",&[]);
+    match sub_code_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+    
+    //residue index
+    log("DROPPING residue index..."); 
+    let residue_index_result = conn.execute("DROP INDEX if exists residue_idx",&[]);
+    match residue_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //position index
+    log("DROPPING position index..."); 
+    let position_index_result = conn.execute("DROP INDEX if exists position_idx",&[]);
+    match position_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //enz_code null index
+    log("DROPPING enz_code_null index..."); 
+    let ptm_enzyme_index_result = conn.execute("DROP INDEX if exists enz_code_null_idx",&[]);
+    match ptm_enzyme_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //SUB_FORM_CODE index
+    log("DROPPING SUB_FORM_CODE index..."); 
+    let sub_form_index_result = conn.execute("DROP INDEX if exists sub_form_code_idx",&[]);
+    match sub_form_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
+    //EVENT_NAME index
+    log("DROPPING EVENT_NAME index..."); 
+    let event_name_index_result = conn.execute("DROP INDEX if exists event_name_idx",&[]);
+    match event_name_index_result {
+        Ok(_value) => {
+            logln("DONE");
+        },
+        Err(error) => {
+            error!("{}",error);
+            std::process::exit(-1);
+        }
+    }
+
     //SEQ_ID index
-    log("CREATING SEQ_ID index...");
+    log("DROPPING SEQ_ID index...");
     let event_name_index_result = conn.execute("DROP INDEX IF EXISTS seq_id_idx",&[]);
     match event_name_index_result {
         Ok(_value) => {
-            logln("Done");
+            logln("DONE");
             io::stdout().flush().unwrap();
         },
         Err(error) => {
@@ -622,7 +828,7 @@ fn create_index(conn: &Connection) {
     let uniprot_id_index_result = conn.execute("CREATE INDEX uniprot_id_idx on MV_ENTRY (uniprot_id)",&[]);
     match uniprot_id_index_result {
         Ok(_value) => {
-            logln("Done");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -635,7 +841,7 @@ fn create_index(conn: &Connection) {
     let protein_name_index_result = conn.execute("CREATE INDEX protein_name_idx on MV_ENTRY (protein_name)",&[]);
     match protein_name_index_result {
         Ok(_value) => {
-            logln("CREATED protein_name index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -644,11 +850,11 @@ fn create_index(conn: &Connection) {
     }
 
     //gene_name index
-    log("CREATING gene_name index"); 
+    log("CREATING gene_name index..."); 
     let gene_name_index_result = conn.execute("CREATE INDEX gene_name_idx on MV_ENTRY (gene_name)",&[]);
     match gene_name_index_result {
         Ok(_value) => {
-            logln("CREATED gene_name index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -657,11 +863,11 @@ fn create_index(conn: &Connection) {
     }
 
     //role_as_enzyme  index
-    log("CREATING role_as_enzyme index"); 
+    log("CREATING role_as_enzyme index..."); 
     let role_as_enzyme_index_result = conn.execute("CREATE INDEX role_as_enzyme_idx on MV_ENTRY (role_as_enzyme)",&[]);
     match role_as_enzyme_index_result {
         Ok(_value) => {
-            logln("CREATED role_as_enzyme index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -670,11 +876,11 @@ fn create_index(conn: &Connection) {
     }
 
     //role_as_substrate index
-    log("CREATING role_as_substrate index"); 
+    log("CREATING role_as_substrate index..."); 
     let role_as_substrate_index_result = conn.execute("CREATE INDEX role_as_substrate_idx on MV_ENTRY (role_as_substrate)",&[]);
     match role_as_substrate_index_result {
         Ok(_value) => {
-            logln("CREATED role_as_substrate index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -683,11 +889,11 @@ fn create_index(conn: &Connection) {
     }
 
     //taxon_code index
-    log("CREATING taxon_code index"); 
+    log("CREATING taxon_code index..."); 
     let taxon_code_index_result = conn.execute("CREATE INDEX taxon_code_idx on MV_ENTRY (taxon_code)",&[]);
     match taxon_code_index_result {
         Ok(_value) => {
-            logln("CREATED taxon_code index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -696,11 +902,11 @@ fn create_index(conn: &Connection) {
     }
 
     //iptm_entry_code index
-    log("CREATING iptm_entry_code index"); 
+    log("CREATING iptm_entry_code index..."); 
     let iptm_entry_code_index_result = conn.execute("CREATE INDEX iptm_entry_code_idx on MV_ENTRY (iptm_entry_code)",&[]);
     match iptm_entry_code_index_result {
         Ok(_value) => {
-            logln("CREATED iptm_entry_code index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -709,11 +915,11 @@ fn create_index(conn: &Connection) {
     }
     
     //sub_code index
-    info!("CREATING sub_code index"); 
+    log("CREATING sub_code index..."); 
     let sub_code_index_result = conn.execute("CREATE INDEX sub_code_idx on MV_EVENT (sub_code)",&[]);
     match sub_code_index_result {
         Ok(_value) => {
-            info!("CREATED sub_code index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -722,11 +928,11 @@ fn create_index(conn: &Connection) {
     }
     
     //residue index
-    info!("CREATING residue index"); 
+    log("CREATING residue index..."); 
     let residue_index_result = conn.execute("CREATE INDEX residue_idx on MV_EVENT (residue)",&[]);
     match residue_index_result {
         Ok(_value) => {
-            info!("CREATED residue index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -735,11 +941,11 @@ fn create_index(conn: &Connection) {
     }
 
     //position index
-    info!("CREATING position index"); 
+    log("CREATING position index..."); 
     let position_index_result = conn.execute("CREATE INDEX position_idx on MV_EVENT (position)",&[]);
     match position_index_result {
         Ok(_value) => {
-            info!("CREATED position index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -748,11 +954,11 @@ fn create_index(conn: &Connection) {
     }
 
     //enz_code null index
-    info!("CREATING enz_code_null index"); 
+    log("CREATING enz_code_null index..."); 
     let ptm_enzyme_index_result = conn.execute("CREATE INDEX enz_code_null_idx on MV_EVENT (enz_code)",&[]);
     match ptm_enzyme_index_result {
         Ok(_value) => {
-            info!("CREATED enz_code_null_index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -761,11 +967,11 @@ fn create_index(conn: &Connection) {
     }
 
     //SUB_FORM_CODE index
-    info!("CREATING SUB_FORM_CODE index"); 
+    log("CREATING SUB_FORM_CODE index..."); 
     let sub_form_index_result = conn.execute("CREATE INDEX sub_form_code_idx on MV_EVENT (SUB_FORM_CODE)",&[]);
     match sub_form_index_result {
         Ok(_value) => {
-            info!("CREATED SUB_FORM_CODE index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -774,11 +980,11 @@ fn create_index(conn: &Connection) {
     }
 
     //EVENT_NAME index
-    info!("CREATING EVENT_NAME index"); 
+    log("CREATING EVENT_NAME index..."); 
     let event_name_index_result = conn.execute("CREATE INDEX event_name_idx on MV_EVENT (EVENT_NAME)",&[]);
     match event_name_index_result {
         Ok(_value) => {
-            info!("CREATED EVENT_NAME index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
@@ -787,11 +993,11 @@ fn create_index(conn: &Connection) {
     }
 
     //SEQ_ID index
-    info!("CREATING SEQ_ID index"); 
+    log("CREATING SEQ_ID index..."); 
     let event_name_index_result = conn.execute("CREATE INDEX seq_id_idx on SEQUENCE (ID)",&[]);
     match event_name_index_result {
         Ok(_value) => {
-            info!("CREATED SEQ_ID index");
+            logln("DONE");
         },
         Err(error) => {
             error!("{}",error);
